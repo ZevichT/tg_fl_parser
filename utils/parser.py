@@ -4,7 +4,7 @@ from json import JSONDecodeError
 from bs4 import BeautifulSoup
 import aiohttp
 import json
-from config import pages
+from config import pages, parse_url
 
 from database import OfferRepository
 
@@ -40,9 +40,9 @@ async def get_offer():
         for page in range(1, pages + 1):
 
             if page == 1:  # Если первая страница, то не меняем ссылку, ибо в другом исходе запросы зацикливаются
-                url = f'https://www.fl.ru/projects/category/programmirovanie/'
+                url = f'{parse_url}'
             else:
-                url = f'https://www.fl.ru/projects/category/programmirovanie/page-{page}'
+                url = f'{parse_url}page-{page}'
 
             pages_tasks.append(asyncio.create_task(fetch(url, session)))
         pages_gather = await asyncio.gather(*pages_tasks)
@@ -82,8 +82,7 @@ async def process_offer(session, idx, url, name):
     # Такой костыль был поставлен, т.к по неизвестной причине в описании заказ множество пустых строк. Мы их сплитим, затем объединяем.
     discreption = ' '.join(discreption.split())
 
-    if discreption == '':  # Если заказ не имеет стандартного описания, то это вакансия и мы его скипаем, попутно возвращаясь к прошлому состоянию
-        offers.pop()
+    if discreption == '':  # Если заказ не имеет стандартного описания, то это вакансия и мы его скипаем
         return
 
     offer_price = offer_soup.find_all('div', class_='py-32 text-right unmobile flex-shrink-0 ml-auto mobile')  # Ищем цену
@@ -110,4 +109,3 @@ with open('../cache.json', 'w', encoding='utf-8') as file:
     json.dump(cache, file, ensure_ascii=False)
 asyncio.run(add_offer_to_db())
 offers = sorted(offers, key=lambda x: x[0])
-
